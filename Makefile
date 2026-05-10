@@ -1,17 +1,21 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -g
+CFLAGS = -Wall -Wextra -std=c11 -g -Iinclude
 
-TARGET = app
+TARGET = build/app
 
-SRCS = main.c ring_buffer.c tournament_tree.c
-OBJS = $(SRCS:.c=.o)
+SRC_DIR = src
+BUILD_DIR = build
+
+SRCS = $(wildcard $(SRC_DIR)/*.c)
+OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS)
 
-%.o: %.c
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
@@ -19,3 +23,5 @@ run: $(TARGET)
 
 clean:
 	rm -f $(OBJS) $(TARGET)
+
+.PHONY: all run clean

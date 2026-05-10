@@ -6,3 +6,7 @@
 app
 *.exe
 *.out
+
+# IDE
+.cache
+compile_commands.json
