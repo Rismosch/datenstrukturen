@@ -2,11 +2,12 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "quake_heap.h"
 #include "ring_buffer.h"
 #include "tournament_tree.h"
 
 void test_ring_buffer() {
-    RingBuffer *ds = ring_buffer_new(3);
+    RingBuffer* ds = ring_buffer_new(3);
     bool success;
 
     success = ring_buffer_enque(ds, (void*)42);
@@ -32,12 +33,12 @@ void test_ring_buffer() {
 }
 
 void test_tournament_tree() {
-    TournamentTree *t7 = tournament_tree_new(7);
-    TournamentTree *t4 = tournament_tree_new(4);
-    TournamentTree *t9 = tournament_tree_new(9);
-    TournamentTree *t10 = tournament_tree_new(10);
-    TournamentTree *t12 = tournament_tree_new(12);
-    TournamentTree *t0 = tournament_tree_new(0);
+    TournamentTree* t7 = tournament_tree_new(7);
+    TournamentTree* t4 = tournament_tree_new(4);
+    TournamentTree* t9 = tournament_tree_new(9);
+    TournamentTree* t10 = tournament_tree_new(10);
+    TournamentTree* t12 = tournament_tree_new(12);
+    TournamentTree* t0 = tournament_tree_new(0);
 
     TournamentTreeLeafNode *n4 = tournament_tree_get_min(t4);
 
@@ -62,8 +63,14 @@ void test_tournament_tree() {
     tournament_tree_delete(part);
 }
 
+void test_quake_heap() {
+    QuakeHeap* q = quake_heap_new();
+
+    quake_heap_delete(q);
+}
+
 int main() {
-    test_tournament_tree();
+    test_quake_heap();
     return 0;
 }
 
