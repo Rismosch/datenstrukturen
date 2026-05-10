@@ -32,13 +32,34 @@ void test_ring_buffer() {
 }
 
 void test_tournament_tree() {
-    TournamentTree *ds;
+    TournamentTree *t7 = tournament_tree_new(7);
+    TournamentTree *t4 = tournament_tree_new(4);
+    TournamentTree *t9 = tournament_tree_new(9);
+    TournamentTree *t10 = tournament_tree_new(10);
+    TournamentTree *t12 = tournament_tree_new(12);
+    TournamentTree *t0 = tournament_tree_new(0);
 
-    int values[6] = {7, 4, 9, 10, 12, 0};
+    TournamentTreeLeafNode *n4 = tournament_tree_get_min(t4);
 
-    ds = tournament_tree_new(values, 6);
+    t4 = tournament_tree_link(t4, t9);
+    t10 = tournament_tree_link(t10, t12);
+    t4 = tournament_tree_link(t4, t10);
+    t0 = tournament_tree_link(t4, t0);
+    t0 = tournament_tree_link(t7, t0);
+    TournamentTree *t = t0;
 
-    tournament_tree_delete(ds);
+    printf("tree:\n");
+    tournament_tree_print(t);
+
+    TournamentTree *part = tournament_tree_cut(t, n4);
+
+    printf("tree:\n");
+    tournament_tree_print(t);
+    printf("part:\n");
+    tournament_tree_print(part);
+
+    tournament_tree_delete(t);
+    tournament_tree_delete(part);
 }
 
 int main() {

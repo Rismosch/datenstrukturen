@@ -1,135 +1,69 @@
 #include "tournament_tree.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
-
-#include "ring_buffer.h"
 
 // members
 typedef enum {
-    NODEKIND_INNER,
-    NODEKIND_LEAF,
-} NodeKind;
+    TOURNAMENT_TREE_INNER_NODE,
+    TOURNAMENT_TREE_LEAF_NODE,
+} TournamentTreeNodeKind;
 
-typedef struct BaseNode BaseNode;
-typedef struct InnerNode InnerNode;
-typedef struct LeafNode LeafNode;
-
-struct BaseNode {
-    NodeKind kind;
-    InnerNode *parent;
+struct TournamentTreeBaseNode {
+    TournamentTreeNodeKind kind;
+    struct TournamentTreeInnerNode *parent;
+    uint32_t height;
 };
 
-struct InnerNode {
+struct TournamentTreeInnerNode {
     // base
-    NodeKind kind;
-    InnerNode *parent;
+    TournamentTreeNodeKind kind;
+    struct TournamentTreeInnerNode *parent;
+    uint32_t height;
     // inner
-    LeafNode *leaf;
-    union Node *left_child;
-    union Node *right_child;
+    struct TournamentTreeLeafNode *leaf;
+    union TournamentTreeNode *left_child;
+    union TournamentTreeNode *right_child;
 };
 
-struct LeafNode {
+struct TournamentTreeLeafNode {
     // base
-    NodeKind kind;
-    InnerNode *parent;
+    TournamentTreeNodeKind kind;
+    struct TournamentTreeInnerNode *parent;
+    uint32_t height;
     // leaf
     int value;
-    union Node *node;
+    union TournamentTreeNode *node;
 };
 
-typedef union Node {
-    BaseNode base;
-    InnerNode inner;
-    LeafNode leaf;
-} Node;
+typedef union TournamentTreeNode {
+    struct TournamentTreeBaseNode base;
+    struct TournamentTreeInnerNode inner;
+    struct TournamentTreeLeafNode leaf;
+} TournamentTreeNode;
 
 struct TournamentTree {
-    Node *root;
+    TournamentTreeNode *root;
 };
 
-void _tournament_tree_delete_node(Node *node);
+// private members
+void _tournament_tree_delete_node(TournamentTreeNode *node);
+struct TournamentTreeLeafNode *_tournament_tree_get_leaf(TournamentTreeNode *node);
+void _tournament_tree_grow(TournamentTree *tree, uint32_t count);
+void _tournament_tree_print_node(TournamentTreeNode *node, uint32_t generation);
 
 // public functions
-TournamentTree *tournament_tree_new(int32_t x[], uint32_t len) {
-    if (!x || len == 0) {
-        return NULL;
-    }
+TournamentTree *tournament_tree_new(int32_t x) {
+    struct TournamentTreeLeafNode *leaf = malloc(sizeof(struct TournamentTreeLeafNode));
+    leaf->kind = TOURNAMENT_TREE_LEAF_NODE;
+    leaf->parent = NULL;
+    leaf->height = 1;
+    leaf->value = x;
+    leaf->node = (TournamentTreeNode *)leaf;
 
-    uint32_t i;
-    RingBuffer *rb;
-    LeafNode *leaf;
-
-    rb = ring_buffer_new(len);
-
-    // alloc leafs
-    for (i = 0; i < len; ++i) {
-        leaf = malloc(sizeof(LeafNode));
-        leaf->kind = NODEKIND_LEAF;
-        leaf->parent = NULL;
-        leaf->value = x[i];
-        leaf->node = (Node*)leaf;
-
-        ring_buffer_enque(rb, leaf);
-    }
-
-    // build tree
-    while (ring_buffer_len(rb) >= 2) {
-        InnerNode *parent;
-        Node *l;
-        Node *r;
-
-        (void)ring_buffer_deque(rb, (void **)&l);
-        (void)ring_buffer_deque(rb, (void **)&r);
-
-        // alloc parent
-        parent = malloc(sizeof(InnerNode));
-        parent->kind = NODEKIND_INNER;
-        parent->left_child = l;
-        parent->right_child = r;
-
-        // assign parent
-        l->base.parent = parent;
-        r->base.parent = parent;
-
-        // compare values
-        LeafNode *l_leaf, *r_leaf;
-
-        switch (l->base.kind) {
-        case NODEKIND_INNER:
-            l_leaf = l->inner.leaf;
-            break;
-        case NODEKIND_LEAF:
-            l_leaf = &l->leaf;
-            break;
-        }
-
-        switch (r->base.kind) {
-        case NODEKIND_INNER:
-            r_leaf = r->inner.leaf;
-            break;
-        case NODEKIND_LEAF:
-            r_leaf = &r->leaf;
-            break;
-        }
-
-        // assign leaf and node references
-        if (l_leaf->value < r_leaf->value) {
-            parent->leaf = l_leaf;
-            l_leaf->node = (Node*)parent;
-        } else {
-            parent->leaf = r_leaf;
-            r_leaf->node = (Node*)parent;
-        }
-
-        // push back to queue
-        ring_buffer_enque(rb, parent);
-    }
-
-    // final tree setup
-    TournamentTree* tree = malloc(sizeof(TournamentTree));
-    ring_buffer_deque(rb, (void **)&tree->root);
+    TournamentTree *tree = malloc(sizeof(TournamentTree));
+    tree->root = (TournamentTreeNode *)leaf;
 
     return tree;
 }
@@ -143,20 +77,85 @@ void tournament_tree_delete(TournamentTree *ds) {
     free(ds);
 }
 
-void tournament_tree_print(TournamentTree *ds) {
-    RingBuffer *rb = ring_buffer_new(1<<10);
+TournamentTreeLeafNode *tournament_tree_get_min(TournamentTree *t) {
+    return _tournament_tree_get_leaf(t->root);
+}
 
-    ring_buffer_enque(rb, ds->root);
+TournamentTree *tournament_tree_link(TournamentTree *t1, TournamentTree *t2) {
+    uint32_t h1 = t1->root->base.height;
+    uint32_t h2 = t2->root->base.height;
+    if (h1 < h2) {
+        _tournament_tree_grow(t1, h2 - h1);
+    } else if (h2 < h1) {
+        _tournament_tree_grow(t2, h1 - h2);
+    }
+
+    struct TournamentTreeInnerNode *root = malloc(sizeof(struct TournamentTreeInnerNode));
+    root->kind = TOURNAMENT_TREE_INNER_NODE;
+    root->parent = NULL;
+    root->height = t1->root->base.height + 1;
+    root->left_child = t1->root;
+    root->right_child = t2->root;
+
+    struct TournamentTreeLeafNode *lleaf = _tournament_tree_get_leaf(t1->root);
+    struct TournamentTreeLeafNode *rleaf = _tournament_tree_get_leaf(t2->root);
+
+    if (lleaf->value < rleaf->value) {
+        root->leaf = lleaf;
+        lleaf->node = (TournamentTreeNode *)root;
+    } else {
+        root->leaf = rleaf;
+        rleaf->node = (TournamentTreeNode *)root;
+    }
+
+    t1->root->base.parent = root;
+    t2->root->base.parent = root;
+
+    free(t1);
+    free(t2);
+
+    TournamentTree *t = malloc(sizeof(TournamentTree));
+    t->root = (TournamentTreeNode *)root;
+
+    return t;
+}
+
+TournamentTree *tournament_tree_cut(TournamentTree *t, TournamentTreeLeafNode* n){
+    TournamentTreeNode *root1 = t->root;
+    TournamentTreeNode *root2 = n->node;
+
+    if (root1 == root2) {
+        return NULL;
+    }
+
+    struct TournamentTreeInnerNode *parent = root2->base.parent;
+
+    if (parent->left_child == root2) {
+        parent->left_child = NULL;
+    } else {
+        parent->right_child = NULL;
+    }
+
+    root2->base.parent = NULL;
+
+    TournamentTree *t2 = malloc(sizeof(TournamentTree));
+    t2->root = root2;
+
+    return t2;
+}
+
+void tournament_tree_print(TournamentTree *t) {
+    _tournament_tree_print_node(t->root, 0);
 }
 
 // private functions
-void _tournament_tree_delete_node(Node *node) {
+void _tournament_tree_delete_node(TournamentTreeNode *node) {
     if (!node) {
         return;
     }
 
-    if (node->base.kind == NODEKIND_INNER) {
-        InnerNode inner = node->inner;
+    if (node->base.kind == TOURNAMENT_TREE_INNER_NODE) {
+        struct TournamentTreeInnerNode inner = node->inner;
         _tournament_tree_delete_node(inner.left_child);
         _tournament_tree_delete_node(inner.right_child);
     }
@@ -164,3 +163,46 @@ void _tournament_tree_delete_node(Node *node) {
     free(node);
 }
 
+struct TournamentTreeLeafNode *_tournament_tree_get_leaf(TournamentTreeNode *node) {
+    if (node->base.kind == TOURNAMENT_TREE_LEAF_NODE) {
+        return (struct TournamentTreeLeafNode *)node;
+    } else {
+        return node->inner.leaf;
+    }
+}
+
+void _tournament_tree_grow(TournamentTree *tree, uint32_t count) {
+    for (uint32_t i = 0; i < count; ++i) {
+        struct TournamentTreeInnerNode *n = malloc(sizeof(struct TournamentTreeInnerNode));
+        n->kind = TOURNAMENT_TREE_INNER_NODE;
+        n->parent = NULL;
+        n->height = tree->root->base.height + 1;
+
+        struct TournamentTreeLeafNode *leaf = _tournament_tree_get_leaf(tree->root);
+        n->leaf = leaf;
+        leaf->node = (TournamentTreeNode *)n;
+
+        n->left_child = tree->root;
+        n->right_child = NULL;
+        tree->root->base.parent = n;
+        tree->root = (TournamentTreeNode *)n;
+    }
+}
+
+void _tournament_tree_print_node(TournamentTreeNode *node, uint32_t generation) {
+    if (!node) {
+        return;
+    }
+
+    for (uint32_t i = 0; i < generation; ++i) {
+        printf("  ");
+    }
+
+    struct TournamentTreeLeafNode *leaf = _tournament_tree_get_leaf(node);
+    printf("- %i\n", leaf->value);
+
+    if (node->base.kind == TOURNAMENT_TREE_INNER_NODE) {
+        _tournament_tree_print_node(node->inner.left_child, generation + 1);
+        _tournament_tree_print_node(node->inner.right_child, generation + 1);
+    }
+}

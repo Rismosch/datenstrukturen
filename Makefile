@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -g -Iinclude
+CFLAGS = -Wall -Wextra -std=c11 -g -Iinclude -pedantic -O0
 
 TARGET = build/app
 
