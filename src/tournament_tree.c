@@ -33,7 +33,9 @@ struct TournamentTreeLeafNode {
     struct TournamentTreeInnerNode *parent;
     uint32_t height;
     // leaf
-    int value;
+    int32_t key;
+    void* value;
+    bool owns_value;
     union TournamentTreeNode *node;
 };
 
@@ -54,12 +56,14 @@ void _tournament_tree_grow(TournamentTree *tree, uint32_t count);
 void _tournament_tree_print_node(TournamentTreeNode *node, uint32_t generation);
 
 // public functions
-TournamentTree *tournament_tree_new(int32_t x) {
+TournamentTree *tournament_tree_new(int32_t k, void* v, bool take_ownership) {
     struct TournamentTreeLeafNode *leaf = malloc(sizeof(struct TournamentTreeLeafNode));
     leaf->kind = TOURNAMENT_TREE_LEAF_NODE;
     leaf->parent = NULL;
     leaf->height = 1;
-    leaf->value = x;
+    leaf->key = k;
+    leaf->value = v;
+    leaf->owns_value = take_ownership;
     leaf->node = (TournamentTreeNode *)leaf;
 
     TournamentTree *tree = malloc(sizeof(TournamentTree));
@@ -100,7 +104,7 @@ TournamentTree *tournament_tree_link(TournamentTree *t1, TournamentTree *t2) {
     struct TournamentTreeLeafNode *lleaf = _tournament_tree_get_leaf(t1->root);
     struct TournamentTreeLeafNode *rleaf = _tournament_tree_get_leaf(t2->root);
 
-    if (lleaf->value < rleaf->value) {
+    if (lleaf->key < rleaf->key) {
         root->leaf = lleaf;
         lleaf->node = (TournamentTreeNode *)root;
     } else {
@@ -154,10 +158,19 @@ void _tournament_tree_delete_node(TournamentTreeNode *node) {
         return;
     }
 
-    if (node->base.kind == TOURNAMENT_TREE_INNER_NODE) {
+    switch (node->base.kind) {
+    case TOURNAMENT_TREE_INNER_NODE:
         struct TournamentTreeInnerNode inner = node->inner;
         _tournament_tree_delete_node(inner.left_child);
         _tournament_tree_delete_node(inner.right_child);
+        break;
+    case TOURNAMENT_TREE_LEAF_NODE:
+        struct TournamentTreeLeafNode leaf = node->leaf;
+
+        if (leaf.owns_value) {
+            free(leaf.value);
+        }
+        break;
     }
 
     free(node);
@@ -199,7 +212,7 @@ void _tournament_tree_print_node(TournamentTreeNode *node, uint32_t generation) 
     }
 
     struct TournamentTreeLeafNode *leaf = _tournament_tree_get_leaf(node);
-    printf("- %i\n", leaf->value);
+    printf("- %i, %i\n", leaf->key, leaf->value);
 
     if (node->base.kind == TOURNAMENT_TREE_INNER_NODE) {
         _tournament_tree_print_node(node->inner.left_child, generation + 1);

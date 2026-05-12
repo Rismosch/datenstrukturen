@@ -33,12 +33,12 @@ void test_ring_buffer() {
 }
 
 void test_tournament_tree() {
-    TournamentTree* t7 = tournament_tree_new(7);
-    TournamentTree* t4 = tournament_tree_new(4);
-    TournamentTree* t9 = tournament_tree_new(9);
-    TournamentTree* t10 = tournament_tree_new(10);
-    TournamentTree* t12 = tournament_tree_new(12);
-    TournamentTree* t0 = tournament_tree_new(0);
+    TournamentTree* t7 = tournament_tree_new(7, (void*)3, false);
+    TournamentTree* t4 = tournament_tree_new(4, (void*)2, false);
+    TournamentTree* t9 = tournament_tree_new(9, (void*)4, false);
+    TournamentTree* t10 = tournament_tree_new(10, (void*)5, false);
+    TournamentTree* t12 = tournament_tree_new(12, (void*)6, false);
+    TournamentTree* t0 = tournament_tree_new(0, (void*)1, false);
 
     TournamentTreeLeafNode *n4 = tournament_tree_get_min(t4);
 
@@ -65,6 +65,15 @@ void test_tournament_tree() {
 
 void test_quake_heap() {
     QuakeHeap* q = quake_heap_new();
+
+    quake_heap_insert(q, 1, (void*)1, false);
+    quake_heap_insert(q, 2, (void*)2, false);
+    quake_heap_insert(q, 3, (void*)3, false);
+    quake_heap_insert(q, 4, (void*)4, false);
+    quake_heap_insert(q, 5, (void*)5, false);
+    quake_heap_insert(q, 6, (void*)6, false);
+
+    quake_heap_print(q);
 
     quake_heap_delete(q);
 }
